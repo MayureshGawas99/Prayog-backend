@@ -204,7 +204,7 @@ const getProjectComments = async (req, res) => {
       .populate("author")
       .populate("replies")
       .sort({ createdAt: -1 })
-      .limit(limit * page); // Limit the number of comments per page
+      .limit(limit * page);
 
     // Add isLiked property if user is logged in
     if (req.user) {

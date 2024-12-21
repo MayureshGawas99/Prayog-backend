@@ -234,6 +234,8 @@ const getProjectFile = async (req, res) => {
     console.log(path.basename(filePath), "filename");
     const fullPath = path.join(rootPath, "uploads", filePath.substring(8));
     console.log(fullPath, "fullpath");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline");
     res.status(200).sendFile(fullPath);
   } catch (error) {
     console.log(error);
