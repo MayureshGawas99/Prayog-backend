@@ -10,7 +10,6 @@ const userSchema = mongoose.Schema(
     about: {
       type: "String",
       required: false,
-      default: "Write something about yourself.",
     },
     skills: { type: [String], required: false },
     pic: {
