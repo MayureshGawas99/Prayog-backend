@@ -9,10 +9,14 @@ const authenticateJWT = async (req, res, next) => {
     if (!bearerToken) {
       return res
         .status(401)
-        .json({ message: "Access denied. No token provided." });
+        .send({ message: "Access denied. No token provided." });
     }
 
     token = bearerToken.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).send({ message: "Please Login to proceed" });
+    }
 
     // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET); // Use your secret here
@@ -22,7 +26,7 @@ const authenticateJWT = async (req, res, next) => {
   } catch (err) {
     // If token is invalid or expired
     console.error(err);
-    return res.status(401).json({ message: "Invalid or expired token" });
+    return res.status(401).send({ message: "Invalid or expired token" });
   }
 };
 

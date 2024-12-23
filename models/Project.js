@@ -19,16 +19,12 @@ function getRandomDefaultImage() {
 const projectSchema = mongoose.Schema(
   {
     title: { type: String, required: true },
-    // organization: { type: String, required: false },
     tags: { type: [String], required: false },
     description: { type: String, required: false },
     techstacks: { type: [String], required: false },
     collaborators: [
       { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
     ],
-    // mentors: [
-    //   { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
-    // ],
     admin: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     file: { type: String, required: false },
     img: {

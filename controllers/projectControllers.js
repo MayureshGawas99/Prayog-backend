@@ -294,6 +294,48 @@ const likeProject = async (req, res) => {
   }
 };
 
+const searchProjects = async (req, res) => {
+  try {
+    const { searchTerm = "", filter = "All" } = req.query;
+
+    const query = {};
+
+    if (searchTerm) {
+      const regex = new RegExp(searchTerm, "i"); // Case-insensitive regex
+
+      switch (filter) {
+        case "By Title":
+          query.title = regex;
+          break;
+        case "By Description":
+          query.description = regex;
+          break;
+        case "By Tags":
+          query.tags = { $in: [regex] };
+          break;
+        case "By TechStack":
+          query.techstacks = { $in: [regex] };
+          break;
+        case "All":
+          query.$or = [
+            { title: regex },
+            { description: regex },
+            { tags: { $in: [regex] } },
+            { techstacks: { $in: [regex] } },
+          ];
+          break;
+        default:
+          return res.status(400).send({ message: "Invalid filter option" });
+      }
+    }
+
+    const projects = await Project.find(query);
+    res.status(200).send(projects);
+  } catch (error) {
+    res.status(500).send({ message: "Error retrieving projects", error });
+  }
+};
+
 module.exports = {
   createProject,
   updateProject,
@@ -304,4 +346,5 @@ module.exports = {
   getSingleProject,
   getProjectFile,
   likeProject,
+  searchProjects,
 };

@@ -11,6 +11,7 @@ const {
   getSingleProject,
   getProjectFile,
   likeProject,
+  searchProjects,
 } = require("../controllers/projectControllers");
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -38,5 +39,6 @@ router
   .put(authenticateJWT, upload.single("file"), updateProject);
 router.route("/delete/:projectId").delete(authenticateJWT, deleteProject);
 router.route("/like/:projectId").get(fetchuser, likeProject);
+router.route("/search").get(searchProjects);
 
 module.exports = router;
