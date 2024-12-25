@@ -39,7 +39,6 @@ const fetchuser = async (req, res, next) => {
       return res.status(401).send({ message: "Invalid token" });
     }
     const data = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(data);
     const user = await User.findById(data.userId).select("-password");
     if (!user) {
       return res.status(401).send({ message: "Invalid token" });

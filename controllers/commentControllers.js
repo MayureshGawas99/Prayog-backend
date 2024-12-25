@@ -30,7 +30,6 @@ const createComment = async (req, res) => {
       user.comments.push(createdComment._id);
       const newUser = await user.save();
       project.commentCount += 1;
-      console.log(newUser);
     } else {
       if (!isValidMongoId(parent)) {
         return res
@@ -44,14 +43,12 @@ const createComment = async (req, res) => {
         parent,
       });
       const createdComment = await comment.save();
-      console.log(createdComment);
       const parentComment = await Comment.findById(parent);
       parentComment.replies.push(createdComment._id);
       await parentComment.save();
 
       user.comments.push(createdComment._id);
       const newUser = await user.save();
-      console.log(newUser);
     }
 
     project.totalCommentCount += 1;
@@ -159,7 +156,6 @@ const likeComment = async (req, res) => {
       user.likedComments.push(comment._id); // Use paper._id instead of paperId
 
       const response = await user.save();
-      console.log(response);
 
       comment.likeCount++;
       await comment.save();
@@ -225,39 +221,6 @@ const getProjectComments = async (req, res) => {
     res.status(500).send({ message: "Internal Server Error" });
   }
 };
-
-// const populateReplies = async (commentId, user) => {
-//   let populatedComment = await Comment.findById(commentId)
-//     .populate("replies")
-//     .populate("author");
-//   if (user) {
-//     console.log(user, commentId);
-//     const isLiked = user.likedComments.some(
-//       (p) => p._id.toString() === commentId.toString()
-//     );
-//     populatedComment = { ...populatedComment._doc, isLiked };
-//   }
-
-//   if (populatedComment.replies.length === 0) {
-//     return populatedComment;
-//   }
-
-//   populatedComment.replies = await Promise.all(
-//     populatedComment.replies.map(async (reply) => {
-//       return await populateReplies(reply._id, user);
-//     })
-//   );
-
-//   return populatedComment;
-// };
-
-// const populateComments = async (comments, user) => {
-//   return Promise.all(
-//     comments.map(async (comment) => {
-//       return await populateReplies(comment._id, user);
-//     })
-//   );
-// };
 
 const getCommentReplies = async (req, res) => {
   try {

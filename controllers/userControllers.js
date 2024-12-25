@@ -197,7 +197,9 @@ const searchUsers = async (req, res) => {
         ],
       }
     : {};
-  const users = await User.find(keyword).find({ _id: { $ne: req.user._id } });
+  const users = await User.find(keyword)
+    .find({ _id: { $ne: req.user._id } })
+    .limit(5);
   res.status(200).send(users);
 };
 
@@ -217,7 +219,7 @@ const getUserDetails = async (req, res) => {
     res.status(200).send(userDetails);
   } catch (error) {
     console.log(error);
-    res.status(500).send({ message: error.message });
+    res.status(500).send({ message: "Error fetching user details" });
   }
 };
 

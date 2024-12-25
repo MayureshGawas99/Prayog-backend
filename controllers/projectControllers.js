@@ -5,6 +5,7 @@ const sfs = require("fs").promises;
 const path = require("path");
 const { use } = require("../routes/projectRoutes");
 const { get } = require("http");
+const Comment = require("../models/Comment");
 
 const createProject = async (req, res) => {
   try {
@@ -45,6 +46,7 @@ const updateProject = async (req, res) => {
   try {
     const file = req.file?.path;
     let { title, description, tags, techstacks, collaborators, img } = req.body;
+    console.log(title, description, tags, techstacks, collaborators, img);
     const projectId = req.params.projectId;
     const old = await Project.findById(projectId).populate("admin");
     if (!old) {
@@ -140,19 +142,33 @@ const updateProject = async (req, res) => {
 const deleteProject = async (req, res) => {
   try {
     const projectId = req.params.projectId;
-    // console.log(req.params);
+    // Find the project by its ID and populate the admin field
     const project = await Project.findById(projectId).populate("admin");
+
     if (!project) {
       return res.status(404).send({ message: "Project Not Found" });
     }
+
+    // Check if the logged-in user is the admin of the project
     if (project.admin.email !== req.user.email) {
       return res.status(401).send({ message: "Unauthorized" });
     }
+
+    // Delete all comments related to the project
+    await Comment.deleteMany({ projectId: projectId }); // Assuming the Comment model has a field named 'projectId'
+
+    // Delete the project document
     const removedDoc = await Project.findByIdAndDelete(projectId);
-    console.log("Removed document:", removedDoc);
-    const filePath = removedDoc.file;
-    fs.unlinkSync(`./${filePath}`);
-    res.status(200).send({ message: "Deleted Sucessfully" });
+    console.log("Removed project:", removedDoc);
+
+    // If the project has a file, delete it from the server
+    if (removedDoc.file) {
+      const filePath = removedDoc.file;
+      fs.unlinkSync(`./${filePath}`);
+    }
+
+    // Send a successful response
+    res.status(200).send({ message: "Deleted Successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).send({ message: "Error While Deleting" });
@@ -229,11 +245,8 @@ const getProjectFile = async (req, res) => {
     const { projectId } = req.params;
     const project = await Project.findById(projectId);
     const filePath = project.file;
-    console.log(filePath);
     const rootPath = path.resolve(__dirname, "../");
-    console.log(path.basename(filePath), "filename");
     const fullPath = path.join(rootPath, "uploads", filePath.substring(8));
-    console.log(fullPath, "fullpath");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "inline");
     res.status(200).sendFile(fullPath);
