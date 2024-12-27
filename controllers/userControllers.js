@@ -4,6 +4,11 @@ const uuid = require("uuid");
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
+const { isValidMongoId } = require("../utils/utils");
+const Comment = require("../models/Comment");
+const { default: mongoose } = require("mongoose");
+const Project = require("../models/Project");
+const Connection = require("../models/Connection");
 
 const registerUser = async (req, res) => {
   const { email, name, password } = req.body;
@@ -205,7 +210,28 @@ const searchUsers = async (req, res) => {
 
 const getMyDetails = async (req, res) => {
   try {
-    res.status(200).send(req.user);
+    let user = { ...req.user._doc };
+    //create userObjectId
+    const userObjectId = new mongoose.Types.ObjectId(user._id);
+
+    // Query the database and fetch only _id
+    const commentIds = await Comment.find(
+      { likedBy: userObjectId },
+      { _id: 1 }
+    );
+
+    user.likedComments = commentIds.map((comment) => comment._id);
+    console.log(commentIds);
+
+    const projectIds = await Project.find(
+      { likedBy: userObjectId },
+      { _id: 1 }
+    );
+    console.log(projectIds);
+
+    user.likedProjects = projectIds.map((project) => project._id);
+
+    res.status(200).send(user);
   } catch (error) {
     console.log(error);
     res.status(500).send({ message: error.message });
@@ -254,6 +280,246 @@ const updateUserProfile = async (req, res) => {
   }
 };
 
+const getConnections = async (req, res) => {
+  try {
+    const connections = await Connection.find({
+      acceptedUsers: { $in: [req.user._id] },
+      $expr: { $eq: [{ $size: "$acceptedUsers" }, 2] },
+    }).populate("acceptedUsers"); // Adjust fields as needed
+
+    // Extract the user from each connection who is not equal to req.user._id
+    const connectedUsers = connections.map((connection) => {
+      return connection.acceptedUsers.find(
+        (user) => user._id.toString() !== req.user._id.toString()
+      );
+    });
+
+    res.status(200).send(connectedUsers);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+
+const getNetwork = async (req, res) => {
+  try {
+    // Get all users except the current user
+    const users = await User.find({ _id: { $ne: req.user._id } });
+
+    // Fetch all connections of req.user
+    const userConnections = await Connection.find({
+      users: req.user._id,
+    });
+
+    // Extract IDs of connected users
+    const connectedUserIds = new Set(
+      userConnections.flatMap((connection) =>
+        connection.users.map((id) => id.toString())
+      )
+    );
+
+    // Filter users who are not connected
+    const notConnectedUsers = users.filter(
+      (user) => !connectedUserIds.has(user._id.toString())
+    );
+
+    res.status(200).json(notConnectedUsers);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+// const getConnectionRequests = async (req, res) => {
+//   try {
+//     //get all connections where req.user._id is in users array in connection model
+//     const pendingConnections = await Connection.find({
+//       users: { $in: [req.user._id] },
+//       acceptedUsers: { $in: [req.user._id] },
+//     });
+//     const requestedConnections = await Connection.find({
+//       users: { $in: [req.user._id] },
+//       acceptedUsers: { $nin: [req.user._id] },
+//     });
+//     res.status(200).send({
+//       pendingConnections,
+//       requestedConnections,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send({ message: "Internal Server Error" });
+//   }
+// };
+const getConnectionRequests = async (req, res) => {
+  try {
+    // Fetch pending connections: req.user._id is in both users and acceptedUsers arrays
+    const pendingConnections = await Connection.find({
+      users: { $in: [req.user._id] },
+      //accepted users length should be less than 2
+      acceptedUsers: { $in: [req.user._id] },
+      $expr: { $lt: [{ $size: "$acceptedUsers" }, 2] },
+    })
+      .populate("users") // Populate users array
+      .populate("acceptedUsers"); // Populate acceptedUsers array
+
+    // Fetch requested connections: req.user._id is in users but not in acceptedUsers
+    const requestedConnections = await Connection.find({
+      users: { $in: [req.user._id] },
+      acceptedUsers: { $nin: [req.user._id] },
+    })
+      .populate("users") // Populate users array
+      .populate("acceptedUsers"); // Populate acceptedUsers array
+
+    // Extract the other user for pendingConnections
+    const pendingUsers = pendingConnections.map((connection) =>
+      connection.users.find(
+        (user) => user._id.toString() !== req.user._id.toString()
+      )
+    );
+
+    // Extract the other user for requestedConnections
+    const requestedUsers = requestedConnections.map((connection) =>
+      connection.users.find(
+        (user) => user._id.toString() !== req.user._id.toString()
+      )
+    );
+
+    res.status(200).send({
+      pendingUsers,
+      requestedUsers,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+
+const sendConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).send({ message: "userId is required" });
+    }
+    if (!isValidMongoId(userId)) {
+      return res
+        .status(400)
+        .send({ message: "Please provide a valid User Id" });
+    }
+    //convert req.user._id to string and compare
+    if (req.user._id.toString() === userId) {
+      return res
+        .status(400)
+        .send({ message: "You cannot send a connection request to yourself" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    //check if any Connection exist where req.user_id and user._id are present in users array in connection model
+    const existingConnection = await Connection.findOne({
+      users: { $all: [req.user._id, user._id] },
+    });
+    if (existingConnection) {
+      return res
+        .status(400)
+        .send({ message: "You are already connected with this user" });
+    }
+
+    //create connection
+    const connection = new Connection({
+      users: [req.user._id, user._id],
+      acceptedUsers: [req.user._id],
+    });
+    await connection.save();
+
+    res.status(200).send({ message: "Connection request sent" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+const acceptConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).send({ message: "userId is required" });
+    }
+    if (!isValidMongoId(userId)) {
+      return res
+        .status(400)
+        .send({ message: "Please provide a valid User Id" });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    const connection = await Connection.findOne({
+      users: { $all: [req.user._id, user._id] },
+    });
+    if (!connection) {
+      return res.status(404).send({ message: "Connection not found" });
+    }
+    if (!connection.users.includes(req.user._id)) {
+      return res
+        .status(400)
+        .send({ message: "You are not a part of this connection" });
+    }
+    //check if req.user._id is present in user.connections
+    if (connection.acceptedUsers.includes(req.user._id)) {
+      return res
+        .status(400)
+        .send({ message: "Connection request already accepted" });
+    }
+
+    connection.acceptedUsers.push(req.user._id);
+    const updatedConnection = await connection.save();
+    res
+      .status(200)
+      .send({ message: "Connection request accepted", updatedConnection });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+
+const rejectConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).send({ message: "userId is required" });
+    }
+    if (!isValidMongoId(userId)) {
+      return res
+        .status(400)
+        .send({ message: "Please provide a valid User Id" });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    const connection = await Connection.findOne({
+      users: { $all: [req.user._id, user._id] },
+    });
+    if (!connection) {
+      return res.status(404).send({ message: "Connection not found" });
+    }
+    if (!connection.users.includes(req.user._id)) {
+      return res
+        .status(400)
+        .send({ message: "You are not a part of this connection" });
+    }
+    //delete connection
+    await Connection.findByIdAndDelete(connection._id);
+    res.status(200).send({ message: "Connection request rejected" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   registerUser,
   VerifyUser,
@@ -262,4 +528,10 @@ module.exports = {
   getMyDetails,
   getUserDetails,
   updateUserProfile,
+  getConnections,
+  getNetwork,
+  getConnectionRequests,
+  sendConnectionRequest,
+  acceptConnectionRequest,
+  rejectConnectionRequest,
 };

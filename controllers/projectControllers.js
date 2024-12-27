@@ -6,6 +6,7 @@ const path = require("path");
 const { use } = require("../routes/projectRoutes");
 const { get } = require("http");
 const Comment = require("../models/Comment");
+const { isValidMongoId } = require("../utils/utils");
 
 const createProject = async (req, res) => {
   try {
@@ -280,27 +281,66 @@ const getSingleProject = async (req, res) => {
 const likeProject = async (req, res) => {
   try {
     const { projectId } = req.params;
+    const user = req.user;
+
+    if (!projectId) {
+      return res.status(400).send({ message: "Project ID is required." });
+    }
+    if (!isValidMongoId(projectId)) {
+      return res
+        .status(400)
+        .send({ message: "Please provide a valid Project ID" });
+    }
+
     const project = await Project.findById(projectId);
     if (!project) {
-      return res.status(404).send({ message: "Project not Found" });
+      return res.status(404).send({ message: "Project not found." });
     }
-    const projectObjectId = new mongoose.Types.ObjectId(projectId);
 
-    let message = "";
-    if (req.user.likedProjects.some((id) => id.equals(projectObjectId))) {
-      req.user.likedProjects = req.user.likedProjects.filter(
-        (id) => !id.equals(projectObjectId)
-      );
-      project.likeCount -= 1;
-      message = "Disliked the Project";
+    // Check if req.user._id is already in likes of project
+    const alreadyLikedIndex = project.likedBy.indexOf(user._id);
+
+    if (alreadyLikedIndex === -1) {
+      // If paper is not liked, like it
+      project.likedBy.push(user._id);
+
+      project.likeCount++;
+      await project.save();
+
+      return res.status(200).send({ message: "Project liked successfully." });
     } else {
-      req.user.likedProjects.push(projectId);
-      project.likeCount += 1;
-      message = "Liked the Project";
+      // If user_id is already rhere then remove it
+
+      project.likedBy.splice(alreadyLikedIndex, 1);
+
+      project.likeCount--;
+      await project.save();
+      return res
+        .status(200)
+        .send({ message: "Project disliked successfully." });
     }
-    const updatedProject = await project.save();
-    const updatedUser = await req.user.save();
-    return res.status(200).send({ message, updatedProject, updatedUser });
+    // const { projectId } = req.params;
+    // const project = await Project.findById(projectId);
+    // if (!project) {
+    //   return res.status(404).send({ message: "Project not Found" });
+    // }
+    // const projectObjectId = new mongoose.Types.ObjectId(projectId);
+
+    // let message = "";
+    // if (req.user.likedProjects.some((id) => id.equals(projectObjectId))) {
+    //   req.user.likedProjects = req.user.likedProjects.filter(
+    //     (id) => !id.equals(projectObjectId)
+    //   );
+    //   project.likeCount -= 1;
+    //   message = "Disliked the Project";
+    // } else {
+    //   req.user.likedProjects.push(projectId);
+    //   project.likeCount += 1;
+    //   message = "Liked the Project";
+    // }
+    // const updatedProject = await project.save();
+    // const updatedUser = await req.user.save();
+    // return res.status(200).send({ message, updatedProject, updatedUser });
   } catch (error) {
     console.log(error.message);
     res.status(500).send({ message: "Internal Server Error" });

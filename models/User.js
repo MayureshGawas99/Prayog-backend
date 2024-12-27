@@ -11,6 +11,11 @@ const userSchema = mongoose.Schema(
       type: "String",
       required: false,
     },
+    isAdmin: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
     skills: { type: [String], required: false },
     pic: {
       type: "String",
@@ -18,14 +23,6 @@ const userSchema = mongoose.Schema(
       default:
         "https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg",
     },
-    likedProjects: [{ type: mongoose.Schema.Types.ObjectId, ref: "blog" }],
-    comments: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "comment",
-      },
-    ],
-    likedComments: [{ type: mongoose.Schema.Types.ObjectId, ref: "comment" }],
   },
   { timestaps: true }
 );

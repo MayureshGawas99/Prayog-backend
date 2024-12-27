@@ -27,7 +27,6 @@ const createComment = async (req, res) => {
     if (!parent) {
       const comment = new Comment({ content, author, projectId: project._id });
       const createdComment = await comment.save();
-      user.comments.push(createdComment._id);
       const newUser = await user.save();
       project.commentCount += 1;
     } else {
@@ -47,7 +46,6 @@ const createComment = async (req, res) => {
       parentComment.replies.push(createdComment._id);
       await parentComment.save();
 
-      user.comments.push(createdComment._id);
       const newUser = await user.save();
     }
 
@@ -133,7 +131,6 @@ const likeComment = async (req, res) => {
     const { commentId } = req.params;
     const user = req.user;
 
-    // Check if paper ID is missing
     if (!commentId) {
       return res.status(400).send({ message: "Comment ID is required." });
     }
@@ -148,22 +145,21 @@ const likeComment = async (req, res) => {
       return res.status(404).send({ message: "Comment not found." });
     }
 
-    // Check if the paper is already liked by the user
-    const alreadyLikedIndex = user.likedComments.indexOf(comment._id);
+    // Check if req.user._id is already in likes of comment
+    const alreadyLikedIndex = comment.likedBy.indexOf(user._id);
 
     if (alreadyLikedIndex === -1) {
-      // If paper is not already liked, like it
-      user.likedComments.push(comment._id); // Use paper._id instead of paperId
-
-      const response = await user.save();
+      // If paper is not liked, like it
+      comment.likedBy.push(user._id);
 
       comment.likeCount++;
       await comment.save();
+
       return res.status(200).send({ message: "Comment liked successfully." });
     } else {
-      // If paper is already liked, dislike it
-      user.likedComments.splice(alreadyLikedIndex, 1);
-      await user.save();
+      // If user_id is already rhere then remove it
+
+      comment.likedBy.splice(alreadyLikedIndex, 1);
 
       comment.likeCount--;
       await comment.save();
@@ -205,7 +201,7 @@ const getProjectComments = async (req, res) => {
     // Add isLiked property if user is logged in
     if (req.user) {
       const updatedComments = topComments.map((comment) => {
-        if (req.user.likedComments.includes(comment._id)) {
+        if (comment.likedBy.includes(req.user._id)) {
           return { ...comment._doc, isLiked: true };
         } else {
           return { ...comment._doc, isLiked: false };
@@ -243,7 +239,7 @@ const getCommentReplies = async (req, res) => {
       .sort({ createdAt: -1 });
     if (req.user) {
       const updatedReplies = replies.map((comment) => {
-        if (req.user.likedComments.includes(comment._id)) {
+        if (comment.likedBy.includes(req.user._id)) {
           return { ...comment._doc, isLiked: true };
         } else {
           return { ...comment._doc, isLiked: false };

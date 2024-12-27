@@ -33,6 +33,8 @@ const projectSchema = mongoose.Schema(
       default: getRandomDefaultImage,
     },
     likeCount: { type: Number, default: 0 },
+    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+
     commentCount: { type: Number, default: 0 },
     totalCommentCount: { type: Number, default: 0 },
   },
