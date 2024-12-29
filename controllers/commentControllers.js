@@ -152,7 +152,8 @@ const likeComment = async (req, res) => {
       // If paper is not liked, like it
       comment.likedBy.push(user._id);
 
-      comment.likeCount++;
+      comment.likeCount = comment.likedBy.length;
+
       await comment.save();
 
       return res.status(200).send({ message: "Comment liked successfully." });
@@ -161,7 +162,7 @@ const likeComment = async (req, res) => {
 
       comment.likedBy.splice(alreadyLikedIndex, 1);
 
-      comment.likeCount--;
+      comment.likeCount = comment.likedBy.length;
       await comment.save();
       return res
         .status(200)

@@ -304,7 +304,7 @@ const likeProject = async (req, res) => {
       // If paper is not liked, like it
       project.likedBy.push(user._id);
 
-      project.likeCount++;
+      project.likeCount = project.likedBy.length;
       await project.save();
 
       return res.status(200).send({ message: "Project liked successfully." });
@@ -312,8 +312,8 @@ const likeProject = async (req, res) => {
       // If user_id is already rhere then remove it
 
       project.likedBy.splice(alreadyLikedIndex, 1);
+      project.likeCount = project.likedBy.length;
 
-      project.likeCount--;
       await project.save();
       return res
         .status(200)

@@ -221,13 +221,13 @@ const getMyDetails = async (req, res) => {
     );
 
     user.likedComments = commentIds.map((comment) => comment._id);
-    console.log(commentIds);
+    // console.log(commentIds);
 
     const projectIds = await Project.find(
       { likedBy: userObjectId },
       { _id: 1 }
     );
-    console.log(projectIds);
+    // console.log(projectIds);
 
     user.likedProjects = projectIds.map((project) => project._id);
 
@@ -352,9 +352,9 @@ const getNetwork = async (req, res) => {
 const getConnectionRequests = async (req, res) => {
   try {
     // Fetch pending connections: req.user._id is in both users and acceptedUsers arrays
+    console.log(req.user._id);
     const pendingConnections = await Connection.find({
       users: { $in: [req.user._id] },
-      //accepted users length should be less than 2
       acceptedUsers: { $in: [req.user._id] },
       $expr: { $lt: [{ $size: "$acceptedUsers" }, 2] },
     })
@@ -383,6 +383,7 @@ const getConnectionRequests = async (req, res) => {
       )
     );
 
+    console.log(pendingConnections);
     res.status(200).send({
       pendingUsers,
       requestedUsers,

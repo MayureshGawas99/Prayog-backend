@@ -1,6 +1,3 @@
-//@description     Get all Messages
-//@route           GET /api/Message/:chatId
-
 const Chat = require("../models/Chat");
 const Message = require("../models/Message");
 const User = require("../models/User");
@@ -8,13 +5,19 @@ const User = require("../models/User");
 //@access          Protected
 const allMessages = async (req, res) => {
   try {
-    const messages = await Message.find({ chat: req.params.chatId })
+    const { chatId } = req.params;
+    if (!chatId) {
+      return res
+        .status(400)
+        .send({ message: "ChatId param not sent with request" });
+    }
+    const messages = await Message.find({ chat: chatId })
       .populate("sender", "name pic email")
       .populate("chat");
-    res.json(messages);
+    res.status(200).send(messages);
   } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
+    console.log(error);
+    res.status(500).send({ message: "Internal Server Error" });
   }
 };
 
@@ -25,8 +28,7 @@ const sendMessage = async (req, res) => {
   const { content, chatId } = req.body;
 
   if (!content || !chatId) {
-    console.log("Invalid data passed into request");
-    return res.sendStatus(400);
+    return res.status(400).send({ message: "Please Fill all the Feilds" });
   }
 
   var newMessage = {
@@ -47,10 +49,10 @@ const sendMessage = async (req, res) => {
 
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
 
-    res.json(message);
+    res.status(201).send(message);
   } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
+    console.log(error);
+    res.status(500).send({ message: "Internal Server Error" });
   }
 };
 
