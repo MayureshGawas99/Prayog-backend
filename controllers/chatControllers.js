@@ -363,6 +363,8 @@ const removeFromGroup = async (req, res) => {
       return res.status(404).send({ message: "Chat Not Found" });
     } else if (reqChat.groupAdmin.toString() !== req.user._id.toString()) {
       return res.status(403).send({ message: "Not Allowed" });
+    } else if (reqChat.groupAdmin.toString() === userId) {
+      return res.status(400).send({ message: "Cannot remove admin" });
     } else {
       const removed = await Chat.findByIdAndUpdate(
         chatId,
@@ -442,6 +444,8 @@ const leaveGroup = async (req, res) => {
       return res.status(404).send({ message: "Chat Not Found" }); // Chat not found
     } else if (!reqChat.users.includes(req.user._id)) {
       return res.status(403).send({ message: "Not Allowed" }); // Not allowed
+    } else if (reqChat.groupAdmin.toString() === req.user._id.toString()) {
+      return res.status(400).send({ message: "Cannot leave group" });
     } else {
       const left = await Chat.findByIdAndUpdate(
         chatId,
@@ -467,6 +471,31 @@ const leaveGroup = async (req, res) => {
   }
 };
 
+const deleteGroup = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    if (!chatId) {
+      return res
+        .status(400)
+        .send({ message: "ChatId param not sent with request" });
+    }
+    const reqChat = await Chat.findById(chatId);
+    if (!reqChat) {
+      return res.status(404).send({ message: "Chat Not Found" }); // Chat not found
+    } else if (reqChat.groupAdmin.toString() !== req.user._id.toString()) {
+      return res.status(403).send({ message: "Not Allowed" });
+    } else {
+      //delete the chat and its messages
+      await Chat.findByIdAndDelete(chatId);
+      await Message.deleteMany({ chat: chatId });
+      res.status(200).send("Deleted Successfully");
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   fetchChats,
   checkChat,
@@ -481,4 +510,5 @@ module.exports = {
   addToGroup,
   removeFromGroup,
   leaveGroup,
+  deleteGroup,
 };

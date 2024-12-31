@@ -42,11 +42,10 @@ const server = app.listen(PORT, () => {
   connectDB();
   // addUsers();
 });
-
 const io = require("socket.io")(server, {
   pingTimeout: 60000,
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   },
 });

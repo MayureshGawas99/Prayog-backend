@@ -15,6 +15,7 @@ const {
   leaveGroup,
   checkChat,
   fetchGroupChats,
+  deleteGroup,
 } = require("../controllers/chatControllers");
 
 const router = express.Router();
@@ -32,5 +33,6 @@ router.route("/group/rename").put(authenticateJWT, renameGroup);
 router.route("/group/remove").put(authenticateJWT, removeFromGroup);
 router.route("/group/add").put(authenticateJWT, addToGroup);
 router.route("/group/leave").put(authenticateJWT, leaveGroup);
+router.route("/group/delete/:chatId").delete(authenticateJWT, deleteGroup);
 
 module.exports = router;
