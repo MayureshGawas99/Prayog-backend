@@ -41,6 +41,7 @@ const checkChat = async (req, res) => {
     }
     const existingChat = await Chat.findOne({
       users: { $all: [req.user._id, user._id] },
+      isGroupChat: false,
     })
       .populate("users", "-password")
       .populate("groupAdmin", "-password")
